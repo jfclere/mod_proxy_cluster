@@ -812,7 +812,13 @@ static proxy_worker *get_worker_from_id_stat(const proxy_server_conf *conf, int 
             proxy_worker **worker = (proxy_worker **)ptrw;
             proxy_cluster_helper *helper = (proxy_cluster_helper *)(*worker)->context;
             if ((*worker)->s == stat && helper->index == id) {
-                return *worker;
+                if ((*worker)->s->hostname[0] == '\0' ||
+                    (*worker)->s->scheme[0] == '\0' ||
+                    (*worker)->s->port == 0) {
+                    return NULL;
+                } else {
+                    return *worker;
+                }
             }
             if (helper->index == id) {
                 unpair_worker_node((*worker)->s, node);
