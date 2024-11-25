@@ -217,6 +217,10 @@ static void add_hcheck(server_rec *s, const proxy_server_conf *conf, proxy_worke
 
 static int (*ap_proxy_retry_worker_fn)(const char *proxy_function, proxy_worker *worker, server_rec *s) = NULL;
 
+static int is_worker_empty(volatile proxy_worker *worker) {
+    return worker && (worker->s->port == 0 || worker->s->scheme[0] == '\0' || worker->s->hostname[0] == '\0');
+}
+
 static void check_workers(const proxy_server_conf *conf, const server_rec *s)
 {
     int i;
@@ -232,8 +236,7 @@ static void check_workers(const proxy_server_conf *conf, const server_rec *s)
             int stop_worker = 0;
             helper = (proxy_cluster_helper *)worker->context;
             ap_assert(helper); /* we are in trouble ... */
-            if (worker->s->port == 0 && worker->s->scheme[0] == '\0' && worker->s->hostname[0] == '\0' &&
-                worker->s->route[0] == '\0') {
+            if (is_worker_empty(worker)) {
                 /* this happens when a new child process is created and it "cleaned" some old slotmem */
                 /* it is like the remove_workers_node we try to restore the non shared memory allocated in
                  * create_worker() */
@@ -812,9 +815,7 @@ static proxy_worker *get_worker_from_id_stat(const proxy_server_conf *conf, int 
             proxy_worker **worker = (proxy_worker **)ptrw;
             proxy_cluster_helper *helper = (proxy_cluster_helper *)(*worker)->context;
             if ((*worker)->s == stat && helper->index == id) {
-                if ((*worker)->s->hostname[0] == '\0' ||
-                    (*worker)->s->scheme[0] == '\0' ||
-                    (*worker)->s->port == 0) {
+                if (is_worker_empty(*worker)) {
                     return NULL;
                 } else {
                     return *worker;
